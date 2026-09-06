@@ -1,0 +1,274 @@
+{
+  "name": "Apex Solar Solutions GHL",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ghl-lead-intake",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "36ddf2ad-4c1f-4193-bad5-6be948fbe5f6",
+      "name": "Webhook",
+      "webhookId": "974e80ab-564f-4041-a33b-39727f10b161"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Evaluate this solar lead:\n- Name: {{ $json.first_name }} {{ $json.last_name }}\n- Electric Bill: {{ $json.monthly_electric_bill }}\n- Roof: {{ $json.roof_age_condition }}\n- Credit: {{ $json.credit_score_range }}\n- Homeowner: {{ $json.homeowner_status }}\n\nAssign a score (1-100), tier (Hot/Warm/Cold), and a brief sales summary.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "fba00623-6d29-4870-8cfc-423b85ce7d05",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        208
+      ],
+      "id": "957c79b6-8f27-4dd0-8cdf-b9e7fdf71aec",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "pYLwe9JlGZsilc88",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "e04ceb7e-3c4e-46e9-a3b3-3a766afa57c3",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "Hot",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        560,
+        0
+      ],
+      "id": "19bf0d2e-e380-4c8f-909c-1c19a675ba70",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Webhook').item.json.contact_id }}/tags",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tags\": [\"Solar-Hot-Lead\", \"AI-Qualified\"],\n  \"customFields\": [\n    {\n      \"key\": \"ai_qualification_summary\",\n      \"field_value\": \"{{ $json.output }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        768,
+        -96
+      ],
+      "id": "482cddf7-b585-435e-80aa-cb2303686d8e",
+      "name": "Update GHL - Hot Lead (Tag & SMS)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Webhook').item.json.contact_id }}/tags",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tags\": [\"Solar-Low-Score\", \"Long-Term-Nurture\"],\n  \"customFields\": [\n    {\n      \"key\": \"ai_qualification_summary\",\n      \"field_value\": \"{{ $json.output }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        768,
+        96
+      ],
+      "id": "d2ae2faa-cb89-4a82-8c25-e1b099c31051",
+      "name": "Update GHL - Nurture Sequence"
+    },
+    {
+      "parameters": {
+        "sendTo": "sales-team@yourcompany.com",
+        "subject": "=🔥 New Hot Solar Lead: {{ $('Webhook').item.json.first_name }} {{ $('Webhook').item.json.last_name }}",
+        "emailType": "text",
+        "message": "=A new high-intent solar lead just arrived!  Contact: {{ $('Webhook').item.json.first_name }} {{ $('Webhook').item.json.last_name }} Phone: {{ $('Webhook').item.json.phone }} Monthly Bill: {{ $('Webhook').item.json.monthly_electric_bill }} Roof Age: {{ $('Webhook').item.json.roof_age_condition }}  AI Assessment: {{ $('AI Agent').item.json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        976,
+        -96
+      ],
+      "id": "2a284e14-72a8-4ef1-8349-7c454fb10580",
+      "name": "Alert Sales Team (Hot Lead)",
+      "webhookId": "f72e63c4-12c3-4443-bba3-b2631ba1b45a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "spQRJctMNH7bgPhk",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "AI Lead Qualification & Scoring (Gemini Pro)",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        256,
+        -96
+      ],
+      "id": "2296f081-f31c-446b-9db8-45ecbd20506b",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "CRM Sync & Multi-Channel Escalation",
+        "height": 80,
+        "width": 150
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -112
+      ],
+      "id": "4593ee0b-8646-415d-b729-c0a35b3c1bf3",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "first_name": "Marcus",
+          "last_name": "Vance",
+          "email": "marcus.vance@solartest.io",
+          "phone": "+15125550198",
+          "contact_id": "ghl_lead_9921a",
+          "address": "4812 Mesa Ridge Dr, Austin, TX 78749",
+          "homeowner_status": "Own Single Family",
+          "monthly_electric_bill": "$285/month",
+          "roof_age_condition": "3-5 years (Good)",
+          "credit_score_range": "720+",
+          "workflow_trigger": "Solar Assessment Intake Form"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update GHL - Hot Lead (Tag & SMS)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update GHL - Nurture Sequence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update GHL - Hot Lead (Tag & SMS)": {
+      "main": [
+        [
+          {
+            "node": "Alert Sales Team (Hot Lead)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "fb4a69d9-a5d6-42ce-99eb-5bcb2733517e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1b4ea91f415390dee0af9ce3e541e5cd6fa69c63de052be2d1b5e764b515ee70"
+  },
+  "nodeGroups": [],
+  "id": "Yq9LSXdc1sosrN6E",
+  "tags": []
+}
